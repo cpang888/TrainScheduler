@@ -8,6 +8,9 @@ var config = {
   messagingSenderId: "914525249010"
 };
 
+var dbData;
+var dbDataArr = [];
+
 firebase.initializeApp(config);
 var database = firebase.database();
 
@@ -20,7 +23,6 @@ function start() {
   console.log("inside start()");
 
   refreshTable();
-  // setInterval(refreshTable(), 60000);
 
   $("#submit").click(function() {
     event.preventDefault();
@@ -102,6 +104,28 @@ function start() {
 
   function getNextArrivalTrain(trainScheduleArr) {
     var currentTime = moment();
+    var anyNextTrain = false;
+
+    for(var i=0; i<trainScheduleArr.length; i++) {
+      var a = moment(trainScheduleArr[i]).format("LLL");
+      var nextTrain = moment().diff(a) > 0;
+      console.log("nextTrain: " + nextTrain);
+      if(!nextTrain) {
+        anyNextTrain = true;
+        break;
+      }
+    }
+    // need to check if there is no more train today
+    // if yes, return next's day first train schedule
+    if(!anyNextTrain) {
+        // var temp = moment(trainScheduleArr[0]).format("LLL");
+        var temp2 = moment(trainScheduleArr[0]).add(1, 'day').format("LLL");
+        console.log("next morning first train: " + temp2);
+
+        // also need to update the train achedule array in DB
+        
+        return temp2;
+    }
     for(var i=0; i<trainScheduleArr.length; i++) {
 
       var a = moment(trainScheduleArr[i]).format("LLL");
@@ -121,33 +145,55 @@ function start() {
     }
   }
 
+  database.ref().orderByChild("dateAdded").limitToLast(100).on("child_added", function(snapshot) {
+
+    // get object from Firebase
+    var trainName = snapshot.val().trainName;
+    var destination = snapshot.val().destination;
+    var first_train_time = snapshot.val().first_train_time;
+    var frequency = snapshot.val().frequency;
+    var trainSchedule = JSON.parse(snapshot.val().trainSchedule);
+
+    var nextArrivalTrain = getNextArrivalTrain(trainSchedule);
+    console.log("nextArrivalTrain time: " + nextArrivalTrain);
+
+    var temp = moment().diff(moment(nextArrivalTrain), 'minute');
+    // console.log("temp: " + temp);
+    var minuteAway = Math.abs(temp);
+    console.log(minuteAway);
+
+    dbData = {dbTrainName: trainName, dbDestination: destination, dbFirstTrainTime: first_train_time,
+                dbFrequency: frequency, dbTrainSchedule: trainSchedule};
+
+    console.log(dbData);
+    // build the dbDataArr so we don't have to go back to DB and get data
+    // it's for refresh table
+    dbDataArr.push(dbData);
+    // build the train schedule table
+     $("#table-body").append("<tr><td>" + dbData.dbTrainName + "</td><td>" + dbData.dbDestination + "</td><td>" + 
+      dbData.dbFrequency + "</td><td>" + nextArrivalTrain + "</td><td>" + minuteAway + "</td></tr>");
+    
+  });
+  
   function refreshTable() {
     console.log("refresh");
     $("#table-body").empty();
 
-    database.ref().orderByChild("dateAdded").limitToLast(100).on("child_added", function(snapshot) {
-
-      // get object from Firebase
-      var trainName = snapshot.val().trainName;
-      var destination = snapshot.val().destination;
-      var first_train_time = snapshot.val().first_train_time;
-      var frequency = snapshot.val().frequency;
-      var trainSchedule = JSON.parse(snapshot.val().trainSchedule);
-  
-      var nextArrivalTrain = getNextArrivalTrain(trainSchedule);
+    // use the dbDataArr to build the table
+    console.log(dbDataArr);
+    dbDataArr.forEach(dbData => {
+      var nextArrivalTrain = getNextArrivalTrain(dbData.dbTrainSchedule);
       console.log("nextArrivalTrain time: " + nextArrivalTrain);
   
       var temp = moment().diff(moment(nextArrivalTrain), 'minute');
       // console.log("temp: " + temp);
       var minuteAway = Math.abs(temp);
-      console.log(minuteAway);
-  
-      // build the train schedule table
-      $("#table-body").append("<tr><td>" + trainName + "</td><td>" + destination + "</td><td>" + frequency + "</td><td>" + 
-        nextArrivalTrain + "</td><td>" + minuteAway + "</td></tr>");
-      
-    });
 
+      $("#table-body").append("<tr><td>" + dbData.dbTrainName + "</td><td>" + dbData.dbDestination + "</td><td>" + 
+      dbData.dbFrequency + "</td><td>" + nextArrivalTrain + "</td><td>" + minuteAway + "</td></tr>");
+ 
+    });
+ 
     // auto refresh every minute
     setInterval(function(){ 
       // $("#table-body").empty();
