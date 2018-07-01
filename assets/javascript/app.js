@@ -40,9 +40,11 @@ function start() {
     var endDate = moment().endOf('day');
     
     // convert first train time to moment object
+    // var train_time = moment(first_train_time, "HH:mm");
+    // train_time = getMomentFromTimeString(train_time);
+    console.log("first_train_time: " + first_train_time);
     var train_time = moment(first_train_time, "HH:mm");
-    train_time = getMomentFromTimeString(train_time);
-    console.log("cindy: " + train_time);
+    console.log("train_time before push: " + train_time);
     // push the first train time to array
     trainSchedule.push(train_time);
 
@@ -62,11 +64,11 @@ function start() {
       }
     }
 
-    // console.log(trainSchedule);
-    // for(var i=0; i<trainSchedule.length; i++) {
-    //   var a = moment(trainSchedule[i]).format("LLL");
-    //   console.log("trainSchedule: " + a);
-    // }
+    console.log(trainSchedule);
+    for(var i=0; i<trainSchedule.length; i++) {
+      var a = moment(trainSchedule[i]).format("LLL");
+      console.log("trainSchedule: " + a);
+    }
 
     // push all info to Firebase
     database.ref().push({
@@ -109,12 +111,12 @@ function start() {
       if(!nextTrain) {
         console.log("nextTrain schedule: " + a);
         return a;
-      } else {
-        // return first train next day
-        var temp = moment(trainScheduleArr[0]).format("LLL");
-        console.log("temp: " + temp);
-        var temp2 = moment(trainScheduleArr[0]).add(1, 'day').format("LLL");
-        return temp2;
+      // } else {
+      //   // return first train next day
+      //   var temp = moment(trainScheduleArr[0]).format("LLL");
+      //   console.log("temp: " + temp);
+      //   var temp2 = moment(trainScheduleArr[0]).add(1, 'day').format("LLL");
+      //   return temp2;
       }
     }
   }
