@@ -1,0 +1,21 @@
+.jumbotron {
+  background-color: #494949;
+  color: white;
+}
+
+.table-div {
+  border: 1px solid lightgray;
+  border-radius: 5px;
+  margin-bottom: 1em;
+  padding: 1em;
+}
+
+.form-div {
+  border: 1px solid lightgray;
+  border-radius: 5px;
+  padding: 1em;
+}
+
+.table {
+  border-top: none;
+}
