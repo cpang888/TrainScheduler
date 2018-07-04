@@ -24,6 +24,43 @@ function start() {
 
   refreshTable();
 
+  function rebuildNextDayTrainSchedule(first_train_time, frequency, dbkey) {
+    console.log("submit new rebuildNextDayTrainSchedule");
+    console.log(first_train_time);
+    var nextDayFirstTrain = moment(first_train_time, "HH:mm");
+    console.log(nextDayFirstTrain);
+    var endDate = nextDayFirstTrain.endOf('day');
+    console.log(endDate);
+    // var tempmoment = moment(endDate, "HH:mm");
+    // console.log("tempmoment: " + endDate.format("LLL"));
+
+    var nextDayTrainScheudle = [];
+    nextDayTrainScheudle.push(nextDayFirstTrain);
+    console.log("nextDayFirstTrain: " + nextDayFirstTrain);
+    
+    while (nextDayFirstTrain < endDate) {
+      console.log("nextDayFirstTrain < endDate");
+      // add train schedule to array
+      // train_time = getMomentFromTimeString(train_time);
+      // add train frequency to train time so we could get the next train schedule
+      nextDayFirstTrain = nextDayFirstTrain.add(frequency, 'minutes');
+      
+      var iscurrentDate = nextDayFirstTrain.isSame(new Date(nextDayFirstTrain), "day");
+      console.log("iscurrentDate " + iscurrentDate);
+      if(iscurrentDate) {
+        // add to trainSchedule array only if it's current date
+        if(nextDayTrainScheudle.indexOf(nextDayFirstTrain) < 0) {
+          nextDayTrainScheudle.push(nextDayFirstTrain);
+        }
+      }
+      
+    }
+
+    console.log("rebuildNextDayTrainSchedule: ");
+    console.log(nextDayTrainScheudle);
+    return nextDayTrainScheudle;
+  }
+
   $("#submit").click(function() {
     event.preventDefault();
 
@@ -80,6 +117,8 @@ function start() {
       frequency: frequency,
       trainSchedule: JSON.stringify(trainSchedule),
         dateAdded: firebase.database.ServerValue.TIMESTAMP
+    }).then(function(data){
+      console.log(data.key);
     });
   
     $("#form").children("option:not(:first)").remove();
@@ -102,7 +141,7 @@ function start() {
     return t;
   }
 
-  function getNextArrivalTrain(trainScheduleArr) {
+  function getNextArrivalTrain(trainScheduleArr, frequency, dbkey) {
     var currentTime = moment();
     var anyNextTrain = false;
 
@@ -123,8 +162,11 @@ function start() {
         console.log("next morning first train: " + temp2);
 
         // also need to update the train achedule array in DB
-        
-        return temp2;
+        var temp2Arr = rebuildNextDayTrainSchedule(temp2, frequency, dbkey);
+        console.log(temp2Arr);
+        console.log(temp2Arr[0]);
+        console.log(temp2Arr[0].format("LLL"));
+        return moment(temp2Arr[0]).format("LLL");
     }
     for(var i=0; i<trainScheduleArr.length; i++) {
 
@@ -148,13 +190,19 @@ function start() {
   database.ref().orderByChild("dateAdded").limitToLast(100).on("child_added", function(snapshot) {
 
     // get object from Firebase
+    var key = snapshot.key;
     var trainName = snapshot.val().trainName;
     var destination = snapshot.val().destination;
     var first_train_time = snapshot.val().first_train_time;
     var frequency = snapshot.val().frequency;
     var trainSchedule = JSON.parse(snapshot.val().trainSchedule);
 
-    var nextArrivalTrain = getNextArrivalTrain(trainSchedule);
+    dbData = {dbKey: key, dbTrainName: trainName, dbDestination: destination, dbFirstTrainTime: first_train_time,
+      dbFrequency: frequency, dbTrainSchedule: trainSchedule};
+
+    console.log(dbData);
+
+    var nextArrivalTrain = getNextArrivalTrain(trainSchedule, frequency, dbData.key);
     console.log("nextArrivalTrain time: " + nextArrivalTrain);
 
     var temp = moment().diff(moment(nextArrivalTrain), 'minute');
@@ -162,15 +210,11 @@ function start() {
     var minuteAway = Math.abs(temp);
     console.log(minuteAway);
 
-    dbData = {dbTrainName: trainName, dbDestination: destination, dbFirstTrainTime: first_train_time,
-                dbFrequency: frequency, dbTrainSchedule: trainSchedule};
-
-    console.log(dbData);
     // build the dbDataArr so we don't have to go back to DB and get data
     // it's for refresh table
     dbDataArr.push(dbData);
     // build the train schedule table
-     $("#table-body").append("<tr><td>" + dbData.dbTrainName + "</td><td>" + dbData.dbDestination + "</td><td>" + 
+     $("#table-body").append("<tr id='" + dbData.dbKey+ "'><td>" + dbData.dbTrainName + "</td><td>" + dbData.dbDestination + "</td><td>" + 
       dbData.dbFrequency + "</td><td>" + nextArrivalTrain + "</td><td>" + minuteAway + "</td></tr>");
     
   });
@@ -182,14 +226,14 @@ function start() {
     // use the dbDataArr to build the table
     console.log(dbDataArr);
     dbDataArr.forEach(dbData => {
-      var nextArrivalTrain = getNextArrivalTrain(dbData.dbTrainSchedule);
+      var nextArrivalTrain = getNextArrivalTrain(dbData.dbTrainSchedule, dbData.dbFrequency, dbData.key);
       console.log("nextArrivalTrain time: " + nextArrivalTrain);
   
       var temp = moment().diff(moment(nextArrivalTrain), 'minute');
       // console.log("temp: " + temp);
       var minuteAway = Math.abs(temp);
 
-      $("#table-body").append("<tr><td>" + dbData.dbTrainName + "</td><td>" + dbData.dbDestination + "</td><td>" + 
+      $("#table-body").append("<tr id='" + dbData.dbKey+ "'><td>" + dbData.dbTrainName + "</td><td>" + dbData.dbDestination + "</td><td>" + 
       dbData.dbFrequency + "</td><td>" + nextArrivalTrain + "</td><td>" + minuteAway + "</td></tr>");
  
     });
